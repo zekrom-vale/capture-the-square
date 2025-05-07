@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Capture the Square</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      margin: 20px;
+      background-color: #f8f9fa;
+    }
+
+    .options-container {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      align-items: center;
+      padding: 15px;
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group {
+      margin-bottom: 10px;
+    }
+
+    .input-group-sm .form-control,
+    .input-group-sm .input-group-text,
+    .form-control-sm,
+    .btn-sm {
+      font-size: 0.8rem;
+    }
+
+    .grid-container {
+      display: grid;
+      background-color: #fff;
+      position: relative;
+      border: 1px solid #ced4da;
+      width: 80vw;
+      aspect-ratio: 1 / 1;
+    }
+
+    .cell {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2vw;
+      border: 1px solid #eee;
+    }
+
+    .dot {
+      position: absolute;
+      width: 0.6em;
+      height: 0.6em;
+      background-color: #333;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .print-title-container {
+      display: none;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .print-button {
+      margin-top: 20px;
+    }
+
+    .reset-button {
+      margin-left: 10px;
+    }
+
+    @media print {
+      .options-container {
+        display: none;
+      }
+
+      .print-button {
+        display: none;
+      }
+
+      .print-title-container {
+        display: block;
+        width: 100%;
+      }
+
+      .print-title-container h1 {
+        font-size: 4em;
+        text-align: center;
+        margin-bottom: 0.5em;
+      }
+
+      .print-title-container h2 {
+        font-size: 3em;
+        text-align: center;
+      }
+
+      body {
+        align-items: flex-start;
+        margin: 10mm;
+        background-color: #fff;
+        font-size: 12pt;
+      }
+
+      .grid-container {
+        width: 98%;
+        height: auto;
+        max-width: none;
+        aspect-ratio: 1 / 1;
+      }
+
+      .cell {
+        font-size: 5vw;
+        border: 1px solid #ccc;
+      }
+
+      .dot {
+        background-color: #000;
+        width: 0.8em;
+        height: 0.8em;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="options-container">
+    <div class="form-group">
+      <label for="gridSize">Grid Size:</label>
+      <input type="number" class="form-control form-control-sm" id="gridSize" value="10" min="2" max="20" style="width: 60px;">
+    </div>
+    <div class="form-group">
+      <label for="die1Start">Die 1 Range:</label>
+      <div class="input-group input-group-sm">
+        <div class="input-group-prepend">
+          <span class="input-group-text">From:</span>
+        </div>
+        <input type="number" class="form-control form-control-sm" id="die1Start" value="1" style="width: 60px;">
+        <div class="input-group-prepend">
+          <span class="input-group-text">To:</span>
+        </div>
+        <input type="number" class="form-control form-control-sm" id="die1End" value="10" style="width: 60px;">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="die2Start">Die 2 Range:</label>
+      <div class="input-group input-group-sm">
+        <div class="input-group-prepend">
+          <span class="input-group-text">From:</span>
+        </div>
+        <input type="number" class="form-control form-control-sm" id="die2Start" value="1" style="width: 60px;">
+        <div class="input-group-prepend">
+          <span class="input-group-text">To:</span>
+        </div>
+        <input type="number" class="form-control form-control-sm" id="die2End" value="10" style="width: 60px;">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="operator">Operator:</label>
+      <select class="form-control form-control-sm" id="operator">
+        <option value="*">*</option>
+        <option value="+">+</option>
+        <option value="-">-</option>
+        <option value="/">/</option>
+        <option value="^">^</option>
+      </select>
+    </div>
+
+    <div>
+      <button class="btn btn-primary btn-sm" onclick="generateGrid()">Generate Grid</button>
+      <button class="btn btn-secondary btn-sm reset-button" onclick="resetSettings()">Reset Settings</button>
+    </div>
+  </div>
+
+  <div class="print-title-container" id="printTitleContainer">
+    <h1 id="printTitle">Capture the Square</h1>
+    <h2 id="printDetails"></h2>
+  </div>
+
+  <div class="grid-container" id="gameGrid">
+  </div>
+
+  <button class="btn btn-primary btn-lg print-button" onclick="window.print()">Print Grid</button>
+
+<script>
+  const gridContainer = document.getElementById('gameGrid');
+  const printTitleContainer = document.getElementById('printTitleContainer');
+  const printDetailsElement = document.getElementById('printDetails');
+  const gridSizeInput = document.getElementById('gridSize');
+  const die1StartInput = document.getElementById('die1Start');
+  const die1EndInput = document.getElementById('die1End');
+  const die2StartInput = document.getElementById('die2Start');
+  const die2EndInput = document.getElementById('die2End');
+  const operatorSelect = document.getElementById('operator');
+  let gridSize = parseInt(gridSizeInput.value);
+  let currentlyEditing = null;
+
+  gridSizeInput.addEventListener('change', function() {
+    gridSize = parseInt(this.value);
+  });
+
+  function resetSettings() {
+    gridSizeInput.value = '10';
+    die1StartInput.value = '1';
+    die1EndInput.value = '10';
+    die2StartInput.value = '1';
+    die2EndInput.value = '10';
+    operatorSelect.value = '*';
+    gridSize = 10; // Update the gridSize variable
+    generateGrid(); // Regenerate the grid with the default settings
+  }
+
+  function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function getOperatorWord(operator) {
+    switch (operator) {
+      case '*': return 'multiplied by';
+      case '+': return 'plus';
+      case '-': return 'minus';
+      case '/': return 'divided by';
+      case '^': return 'to the power of';
+      default: return 'multiplied by';
+    }
+  }
+
+  function generateGrid() {
+    // Clear any existing grid
+    gridContainer.innerHTML = '';
+    gridContainer.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+    gridContainer.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+    currentlyEditing = null;
+
+    const die1Start = parseInt(die1StartInput.value);
+    const die1End = parseInt(die1EndInput.value);
+    const die2Start = parseInt(die2StartInput.value);
+    const die2End = parseInt(die2EndInput.value);
+    const operator = operatorSelect.value;
+    const operatorWord = getOperatorWord(operator);
+
+    // Set the print details content
+    const die1RangeText = (die1Start === 1 && die1End !== 1) ? `${die1End}` : (die1Start === die1End) ? `${die1Start}` : `${die1Start}-${die1End}`;
+    const die2RangeText = (die2Start === 1 && die2End !== 1) ? `${die2End}` : (die2Start === die2End) ? `${die2Start}` : `${die2Start}-${die2End}`;
+    const dice1Text = (die1Start === die1End) ? `${die1RangeText} sided dice` : `${die1RangeText} sided dice`;
+    const dice2Text = (die2Start === die2End) ? `${die2RangeText} sided dice` : `${die2RangeText} sided dice`;
+
+    const diceDescription = `${dice1Text} ${operatorWord} ${dice2Text}`;
+
+    printDetailsElement.textContent = diceDescription;
+
+    for (let i = 0; i < gridSize * gridSize; i++) {
+      const cell = document.createElement('div');
+      cell.classList.add('cell');
+      cell.setAttribute('tabindex', '0');
+      const die1 = getRandomInt(die1Start, die1End);
+      const die2 = getRandomInt(die2Start, die2End);
+      const value = calculateValue(die1, die2, operator);
+      cell.textContent = Math.round(value * 100) / 100;
+      cell.style.position = 'relative';
+      cell.addEventListener('blur', handleCellBlur);
+      gridContainer.appendChild(cell);
+    }
+
+    // Add the dots at the corners/intersections
+    for (let row = 0; row <= gridSize; row++) {
+      for (let col = 0; col <= gridSize; col++) {
+        const dot = document.createElement('div');
+        dot.classList.add('dot');
+        dot.style.top = `${(row / gridSize) * 100}%`;
+        dot.style.left = `${(col / gridSize) * 100}%`;
+        gridContainer.appendChild(dot);
+      }
+    }
+  }
+
+  function handleGridClick(event) {
+    const target = event.target;
+    if (target.classList.contains('cell') && currentlyEditing !== target) {
+      if (currentlyEditing) {
+        currentlyEditing.contentEditable = false;
+      }
+      target.contentEditable = true;
+      target.focus();
+      currentlyEditing = target;
+      event.preventDefault();
+    } else if (target !== currentlyEditing && currentlyEditing) {
+      currentlyEditing.contentEditable = false;
+      currentlyEditing = null;
+    }
+  }
+
+  function handleCellBlur(event) {
+    const cell = event.target;
+    if (cell.contentEditable === 'true') {
+      const newValue = cell.textContent.trim();
+      if (isNaN(Number(newValue))) {
+        // Not a valid number, re-randomize
+        const die1Start = parseInt(die1StartInput.value);
+        const die1End = parseInt(die1EndInput.value);
+        const die2Start = parseInt(die2StartInput.value);
+        const die2End = parseInt(die2EndInput.value);
+        const operator = operatorSelect.value;
+        const die1 = getRandomInt(die1Start, die1End);
+        const die2 = getRandomInt(die2Start, die2End);
+        const value = calculateValue(die1, die2, operator);
+        cell.textContent = Math.round(value * 100) / 100;
+      } else {
+        cell.textContent = newValue;
+      }
+      cell.contentEditable = false;
+      currentlyEditing = null;
+    }
+  }
+
+  function calculateValue(num1, num2, operator) {
+    switch (operator) {
+      case '*': return num1 * num2;
+      case '+': return num1 + num2;
+      case '-': return num1 - num2;
+      case '/': return num1 / num2;
+      case '^': return Math.pow(num1, num2);
+      default: return num1 * num2;
+    }
+  }
+
+  // Generate the initial grid on page load
+  generateGrid();
+
+  // Add event listener for clicks on the grid
+  gridContainer.addEventListener('click', handleGridClick);
+</script>

@@ -165,6 +165,11 @@
       </div>
     </div>
 
+    <div class="form-group form-check">
+      <input type="checkbox" class="form-check-input" id="ensureAll">
+      <label class="form-check-label" for="ensureAll">Ensure All Numbers Appear</label>
+    </div>
+
     <div class="form-group">
       <label for="operator">Operator:</label>
       <select class="form-control form-control-sm" id="operator">
@@ -202,6 +207,7 @@
   const die2StartInput = document.getElementById('die2Start');
   const die2EndInput = document.getElementById('die2End');
   const operatorSelect = document.getElementById('operator');
+  const ensureAllCheckbox = document.getElementById('ensureAll');
   let gridSize = parseInt(gridSizeInput.value);
   let currentlyEditing = null;
 
@@ -216,8 +222,9 @@
     die2StartInput.value = '1';
     die2EndInput.value = '10';
     operatorSelect.value = '*';
-    gridSize = 10; // Update the gridSize variable
-    generateGrid(); // Regenerate the grid with the default settings
+    ensureAllCheckbox.checked = false;
+    gridSize = 10;
+    generateGrid();
   }
 
   function getRandomInt(min, max) {
@@ -237,38 +244,85 @@
     }
   }
 
-  function generateGrid() {
-    // Clear any existing grid
-    gridContainer.innerHTML = '';
-    gridContainer.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
-    gridContainer.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
-    currentlyEditing = null;
+  function calculateValue(num1, num2, operator) {
+    switch (operator) {
+      case '*': return num1 * num2;
+      case '+': return num1 + num2;
+      case '-': return num1 - num2;
+      case '/': return num1 / num2;
+      case '^': return Math.pow(num1, num2);
+      default: return num1 * num2;
+    }
+  }
 
+  function generateGrid() {
+    gridSize = parseInt(gridSizeInput.value);
     const die1Start = parseInt(die1StartInput.value);
     const die1End = parseInt(die1EndInput.value);
     const die2Start = parseInt(die2StartInput.value);
     const die2End = parseInt(die2EndInput.value);
     const operator = operatorSelect.value;
-    const operatorWord = getOperatorWord(operator);
+    const ensureAll = ensureAllCheckbox.checked;
 
-    // Set the print details content
+    gridContainer.innerHTML = '';
+    gridContainer.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+    gridContainer.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+    currentlyEditing = null;
+
+    const operatorWord = getOperatorWord(operator);
     const die1RangeText = (die1Start === 1 && die1End !== 1) ? `${die1End}` : (die1Start === die1End) ? `${die1Start}` : `${die1Start}-${die1End}`;
     const die2RangeText = (die2Start === 1 && die2End !== 1) ? `${die2End}` : (die2Start === die2End) ? `${die2Start}` : `${die2Start}-${die2End}`;
     const dice1Text = (die1Start === die1End) ? `${die1RangeText} sided dice` : `${die1RangeText} sided dice`;
     const dice2Text = (die2Start === die2End) ? `${die2RangeText} sided dice` : `${die2RangeText} sided dice`;
+    printDetailsElement.textContent = `${dice1Text} ${operatorWord} ${dice2Text}`;
 
-    const diceDescription = `${dice1Text} ${operatorWord} ${dice2Text}`;
+    const possibleResults = new Set();
+    for (let i = die1Start; i <= die1End; i++) {
+      for (let j = die2Start; j <= die2End; j++) {
+        possibleResults.add(Math.round(calculateValue(i, j, operator) * 100) / 100);
+      }
+    }
 
-    printDetailsElement.textContent = diceDescription;
+    const numPossible = possibleResults.size;
+    const numCells = gridSize * gridSize;
 
-    for (let i = 0; i < gridSize * gridSize; i++) {
+    if (ensureAll && numPossible > numCells) {
+      alert(`Error: It's not possible to ensure all ${numPossible} unique numbers appear in a ${gridSize}x${gridSize} grid (${numCells} cells).`);
+      return;
+    }
+
+    const gridValues = [];
+    if (ensureAll) {
+      const resultsArray = Array.from(possibleResults);
+      // If there are fewer possible results than cells, fill the rest randomly
+      while (gridValues.length < numCells) {
+        if (gridValues.length < resultsArray.length) {
+          gridValues.push(resultsArray[gridValues.length]);
+        } else {
+          const die1 = getRandomInt(die1Start, die1End);
+          const die2 = getRandomInt(die2Start, die2End);
+          gridValues.push(Math.round(calculateValue(die1, die2, operator) * 100) / 100);
+        }
+      }
+      // Shuffle the array to distribute the guaranteed numbers
+      for (let i = gridValues.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [gridValues[i], gridValues[j]] = [gridValues[j], gridValues[i]];
+      }
+    } else {
+      // Standard random grid generation
+      for (let i = 0; i < numCells; i++) {
+        const die1 = getRandomInt(die1Start, die1End);
+        const die2 = getRandomInt(die2Start, die2End);
+        gridValues.push(Math.round(calculateValue(die1, die2, operator) * 100) / 100);
+      }
+    }
+
+    for (let i = 0; i < numCells; i++) {
       const cell = document.createElement('div');
       cell.classList.add('cell');
       cell.setAttribute('tabindex', '0');
-      const die1 = getRandomInt(die1Start, die1End);
-      const die2 = getRandomInt(die2Start, die2End);
-      const value = calculateValue(die1, die2, operator);
-      cell.textContent = Math.round(value * 100) / 100;
+      cell.textContent = gridValues[i];
       cell.style.position = 'relative';
       cell.addEventListener('blur', handleCellBlur);
       gridContainer.appendChild(cell);
@@ -307,7 +361,6 @@
     if (cell.contentEditable === 'true') {
       const newValue = cell.textContent.trim();
       if (isNaN(Number(newValue))) {
-        // Not a valid number, re-randomize
         const die1Start = parseInt(die1StartInput.value);
         const die1End = parseInt(die1EndInput.value);
         const die2Start = parseInt(die2StartInput.value);
@@ -336,9 +389,12 @@
     }
   }
 
-  // Generate the initial grid on page load
+// Generate the initial grid on page load
   generateGrid();
 
   // Add event listener for clicks on the grid
   gridContainer.addEventListener('click', handleGridClick);
 </script>
+
+</body>
+</html>

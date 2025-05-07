@@ -294,7 +294,7 @@
     const gridValues = [];
     if (ensureAll) {
       const resultsArray = Array.from(possibleResults);
-      // If there are fewer possible results than cells, fill the rest randomly
+      // Fill gridValues with unique results first, then random
       while (gridValues.length < numCells) {
         if (gridValues.length < resultsArray.length) {
           gridValues.push(resultsArray[gridValues.length]);
@@ -304,17 +304,21 @@
           gridValues.push(Math.round(calculateValue(die1, die2, operator) * 100) / 100);
         }
       }
-      // Shuffle the array to distribute the guaranteed numbers
+      // Shuffle the ENTIRE gridValues array
       for (let i = gridValues.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [gridValues[i], gridValues[j]] = [gridValues[j], gridValues[i]];
       }
     } else {
-      // Standard random grid generation
       for (let i = 0; i < numCells; i++) {
         const die1 = getRandomInt(die1Start, die1End);
         const die2 = getRandomInt(die2Start, die2End);
         gridValues.push(Math.round(calculateValue(die1, die2, operator) * 100) / 100);
+      }
+      // Still shuffle the gridValues even if ensureAll is false for consistent randomness
+      for (let i = gridValues.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [gridValues[i], gridValues[j]] = [gridValues[j], gridValues[i]];
       }
     }
 
